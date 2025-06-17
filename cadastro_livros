@@ -1,0 +1,129 @@
+from flask import Flask, request, redirect, render_template_string
+import sqlite3
+import os
+
+app = Flask(__name__)
+
+# Caminho absoluto para o arquivo de banco de dados
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE = os.path.join(BASE_DIR, 'database.db')
+
+# HTML da página inicial (formulário)
+HTML_INDEX = """
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Cadastro de Livros</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+    input, button { margin: 5px; padding: 8px; width: 200px; }
+  </style>
+</head>
+<body>
+  <h1>Cadastro de Livros</h1>
+  <form action="/cadastrar" method="POST">
+    <input type="text" name="titulo" placeholder="Título" required><br>
+    <input type="text" name="autor" placeholder="Autor" required><br>
+    <input type="number" name="ano" placeholder="Ano de Publicação" required><br>
+    <input type="text" name="categoria" placeholder="Categoria" required><br>
+    <button type="submit">Cadastrar</button>
+  </form>
+  <br>
+  <a href="/livros">Ver Acervo</a>
+</body>
+</html>
+"""
+
+# HTML da página de listagem
+HTML_LISTA = """
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Acervo de Livros</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+    table { margin: auto; border-collapse: collapse; }
+    th, td { border: 1px solid black; padding: 8px; }
+  </style>
+</head>
+<body>
+  <h2>Acervo de Livros</h2>
+  <table>
+    <tr>
+      <th>Título</th>
+      <th>Autor</th>
+      <th>Ano</th>
+      <th>Categoria</th>
+    </tr>
+    {% for livro in livros %}
+    <tr>
+      <td>{{ livro[0] }}</td>
+      <td>{{ livro[1] }}</td>
+      <td>{{ livro[2] }}</td>
+      <td>{{ livro[3] }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <br>
+  <a href="/">Voltar</a>
+</body>
+</html>
+"""
+
+def init_db():
+    if not os.path.exists(DATABASE):
+        conn = sqlite3.connect(DATABASE)
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE livros (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                titulo TEXT NOT NULL,
+                autor TEXT NOT NULL,
+                ano_publicacao INTEGER NOT NULL,
+                categoria TEXT NOT NULL
+            )
+        ''')
+        conn.commit()
+        conn.close()
+
+def get_db_connection():
+    conn = sqlite3.connect(DATABASE)
+    return conn
+
+@app.route('/')
+def index():
+    return render_template_string(HTML_INDEX)
+
+@app.route('/cadastrar', methods=['POST'])
+def cadastrar():
+    titulo = request.form['titulo']
+    autor = request.form['autor']
+    try:
+        ano = int(request.form['ano'])
+    except ValueError:
+        ano = 0
+    categoria = request.form['categoria']
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO livros (titulo, autor, ano_publicacao, categoria)
+        VALUES (?, ?, ?, ?)
+    ''', (titulo, autor, ano, categoria))
+    conn.commit()
+    conn.close()
+    return redirect('/livros')
+
+@app.route('/livros')
+def listar():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT titulo, autor, ano_publicacao, categoria FROM livros')
+    livros = cursor.fetchall()
+    conn.close()
+    return render_template_string(HTML_LISTA, livros=livros)
+
+# NÃO coloque app.run() aqui. PythonAnywhere já faz o deploy via WSGI.
+init_db()
