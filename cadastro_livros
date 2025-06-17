@@ -4,11 +4,6 @@ import os
 
 app = Flask(__name__)
 
-# Caminho absoluto para o arquivo de banco de dados
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE = os.path.join(BASE_DIR, 'database.db')
-
-# HTML da página inicial (formulário)
 HTML_INDEX = """
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -16,7 +11,7 @@ HTML_INDEX = """
   <meta charset="UTF-8">
   <title>Cadastro de Livros</title>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+    body { font-family: Arial; text-align: center; margin-top: 50px; }
     input, button { margin: 5px; padding: 8px; width: 200px; }
   </style>
 </head>
@@ -35,7 +30,6 @@ HTML_INDEX = """
 </html>
 """
 
-# HTML da página de listagem
 HTML_LISTA = """
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -43,7 +37,7 @@ HTML_LISTA = """
   <meta charset="UTF-8">
   <title>Acervo de Livros</title>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+    body { font-family: Arial; text-align: center; margin-top: 50px; }
     table { margin: auto; border-collapse: collapse; }
     th, td { border: 1px solid black; padding: 8px; }
   </style>
@@ -51,12 +45,7 @@ HTML_LISTA = """
 <body>
   <h2>Acervo de Livros</h2>
   <table>
-    <tr>
-      <th>Título</th>
-      <th>Autor</th>
-      <th>Ano</th>
-      <th>Categoria</th>
-    </tr>
+    <tr><th>Título</th><th>Autor</th><th>Ano</th><th>Categoria</th></tr>
     {% for livro in livros %}
     <tr>
       <td>{{ livro[0] }}</td>
@@ -73,8 +62,8 @@ HTML_LISTA = """
 """
 
 def init_db():
-    if not os.path.exists(DATABASE):
-        conn = sqlite3.connect(DATABASE)
+    if not os.path.exists('database.db'):
+        conn = sqlite3.connect('database.db')
         cursor = conn.cursor()
         cursor.execute('''
             CREATE TABLE livros (
@@ -88,10 +77,6 @@ def init_db():
         conn.commit()
         conn.close()
 
-def get_db_connection():
-    conn = sqlite3.connect(DATABASE)
-    return conn
-
 @app.route('/')
 def index():
     return render_template_string(HTML_INDEX)
@@ -100,13 +85,10 @@ def index():
 def cadastrar():
     titulo = request.form['titulo']
     autor = request.form['autor']
-    try:
-        ano = int(request.form['ano'])
-    except ValueError:
-        ano = 0
+    ano = request.form['ano']
     categoria = request.form['categoria']
 
-    conn = get_db_connection()
+    conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
     cursor.execute('''
         INSERT INTO livros (titulo, autor, ano_publicacao, categoria)
@@ -118,12 +100,13 @@ def cadastrar():
 
 @app.route('/livros')
 def listar():
-    conn = get_db_connection()
+    conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
     cursor.execute('SELECT titulo, autor, ano_publicacao, categoria FROM livros')
     livros = cursor.fetchall()
     conn.close()
     return render_template_string(HTML_LISTA, livros=livros)
 
-# NÃO coloque app.run() aqui. PythonAnywhere já faz o deploy via WSGI.
-init_db()
+if __name__ == '__main__':
+    init_db()
+    app.run(debug=True)
